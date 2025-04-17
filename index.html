@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Verification Website</title>
+  <style>
+    body {
+      margin: 0;
+      padding: 0;
+      background: linear-gradient(135deg, #667eea, #764ba2);
+      font-family: 'Segoe UI', sans-serif;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      height: 100vh;
+      color: white;
+    }
+
+    .container {
+      text-align: center;
+      background: rgba(255, 255, 255, 0.1);
+      padding: 40px;
+      border-radius: 15px;
+      box-shadow: 0 8px 20px rgba(0, 0, 0, 0.2);
+      backdrop-filter: blur(10px);
+      max-width: 90%;
+    }
+
+    h1 {
+      margin-bottom: 20px;
+      font-size: 2em;
+    }
+
+    input {
+      padding: 10px;
+      border: none;
+      border-radius: 5px;
+      width: 250px;
+      margin-bottom: 15px;
+      font-size: 1em;
+    }
+
+    button {
+      padding: 10px 20px;
+      border: none;
+      background-color: #00ffcc;
+      color: #000;
+      font-weight: bold;
+      font-size: 1em;
+      border-radius: 5px;
+      cursor: pointer;
+      transition: background-color 0.3s ease;
+    }
+
+    button:hover {
+      background-color: #00ccaa;
+    }
+
+    #message {
+      margin-top: 20px;
+      font-size: 1.2em;
+      font-weight: bold;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>Verification Website</h1>
+    <div id="inputSection">
+      <input type="text" id="codeInput" placeholder="verification code here" />
+      <br/>
+      <button onclick="submitCode()">Enter</button>
+    </div>
+    <div id="message"></div>
+  </div>
+
+  <script>
+    const params = new URLSearchParams(window.location.search);
+    const hashParams = new URLSearchParams(window.location.hash.slice(1));
+    const serverName = params.get("servername");
+
+    const clientId = "1362463062631776458"; // Replace with your actual client ID
+    const redirectUri = window.location.origin + window.location.pathname;
+
+    function showMessage(msg) {
+      document.getElementById("message").innerText = msg;
+    }
+
+    if (!serverName) {
+      document.getElementById("inputSection").style.display = "none";
+      showMessage("Missing 'servername' in URL.");
+    }
+
+    // OAuth callback handling
+    if (hashParams.has("access_token") && hashParams.has("state")) {
+      document.getElementById("inputSection").style.display = "none";
+      showMessage("Verifying...");
+
+      const token = hashParams.get("access_token");
+      const state = hashParams.get("state");
+      const [serverNameDecoded, code] = decodeURIComponent(state).split("|");
+
+      fetch("https://discord.com/api/users/@me", {
+        headers: {
+          Authorization: "Bearer " + token
+        }
+      })
+      .then(res => res.json())
+      .then(user => {
+        showMessage(`You have been verified in ${serverNameDecoded} as ${user.username}#${user.discriminator}`);
+        window.location.hash = ""; // Clean up URL
+      })
+      .catch(() => {
+        showMessage("Failed to fetch Discord user info.");
+      });
+
+    }
+
+    function submitCode() {
+      const code = document.getElementById("codeInput").value;
+      if (!code) {
+        alert("Please enter a verification code.");
+        return;
+      }
+
+      const checkUrl = `https://daniel.tf/checkCode.php?code=${encodeURIComponent(code)}`;
+      fetch(checkUrl)
+        .then(res => res.text())
+        .then(result => {
+          if (result.trim() === "Code is valid.") {
+            const state = encodeURIComponent(`${serverName}|${code}`);
+            const scope = "identify";
+            const authUrl = `https://discord.com/api/oauth2/authorize?client_id=${clientId}&redirect_uri=${encodeURIComponent(redirectUri)}&response_type=token&scope=${scope}&state=${state}`;
+            window.location.href = authUrl;
+          } else {
+            showMessage("Invalid code.");
+          }
+        })
+        .catch(err => {
+          showMessage("Error: " + err);
+        });
+    }
+  </script>
+</body>
+        </html>
