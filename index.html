@@ -79,17 +79,18 @@
     const params = new URLSearchParams(window.location.search);
     const hashParams = new URLSearchParams(window.location.hash.slice(1));
     const serverName = params.get("servername");
+    const serverId = params.get("serverid");
 
-    const clientId = "1362463062631776458"; // Replace with your actual client ID
+    const clientId = "1362463062631776458"; // your Discord client ID
     const redirectUri = window.location.origin + window.location.pathname;
 
     function showMessage(msg) {
       document.getElementById("message").innerText = msg;
     }
 
-    if (!serverName) {
+    if (!serverName || !serverId) {
       document.getElementById("inputSection").style.display = "none";
-      showMessage("Missing 'servername' in URL.");
+      showMessage("Missing 'servername' or 'serverid' in URL.");
     }
 
     // OAuth callback handling
@@ -99,22 +100,23 @@
 
       const token = hashParams.get("access_token");
       const state = hashParams.get("state");
-      const [serverNameDecoded, code] = decodeURIComponent(state).split("|");
+      const [serverNameDecoded, serverIdDecoded, code] = decodeURIComponent(state).split("|");
 
       fetch("https://discord.com/api/users/@me", {
-        headers: {
-          Authorization: "Bearer " + token
-        }
+        headers: { Authorization: "Bearer " + token }
       })
       .then(res => res.json())
       .then(user => {
+        const userId = user.id;
         showMessage(`You have been verified in ${serverNameDecoded} as ${user.username}#${user.discriminator}`);
-        window.location.hash = ""; // Clean up URL
+
+        // Send request to add user
+        fetch(`https://daniel.tf/adduser.php?serverid=${encodeURIComponent(serverIdDecoded)}&userid=${encodeURIComponent(userId)}`);
+        window.location.hash = ""; // clean up
       })
       .catch(() => {
         showMessage("Failed to fetch Discord user info.");
       });
-
     }
 
     function submitCode() {
@@ -129,7 +131,8 @@
         .then(res => res.text())
         .then(result => {
           if (result.trim() === "Code is valid.") {
-            const state = encodeURIComponent(`${serverName}|${code}`);
+            showMessage("Redirecting to authorization page...");
+            const state = encodeURIComponent(`${serverName}|${serverId}|${code}`);
             const scope = "identify";
             const authUrl = `https://discord.com/api/oauth2/authorize?client_id=${clientId}&redirect_uri=${encodeURIComponent(redirectUri)}&response_type=token&scope=${scope}&state=${state}`;
             window.location.href = authUrl;
@@ -138,9 +141,9 @@
           }
         })
         .catch(err => {
-          showMessage("Error: " + err);
+          showMessage("Error: " + err.message);
         });
     }
   </script>
 </body>
-        </html>
+</html>
